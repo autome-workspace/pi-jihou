@@ -22,7 +22,9 @@ services:
       - VOICEVOX_URL=http://voicevox:50021
       - AUDIO_AGENT_URL=${AUDIO_AGENT_URL:-http://audio-agent:8031}
     volumes:
-      - data:/var/lib/raspi-audio-scheduler
+      # Bind mount so the host data directory (created by install.sh on the Pi)
+      # is used directly. Defaults to ./data for local development.
+      - ${DATA_DIR:-./data}:/var/lib/raspi-audio-scheduler
     ports:
       - "${APP_PORT:-8080}:8080"
     depends_on:
@@ -61,7 +63,3 @@ services:
       - "${WEB_PORT:-80}:80"
     depends_on:
       - backend
-
-volumes:
-  data:
-    name: raspi-audio-scheduler-data

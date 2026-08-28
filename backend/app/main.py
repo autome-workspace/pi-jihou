@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,8 +26,32 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _prepare_database() -> None:
+    """Create data directories and apply pending migrations.
+
+    Runs before the scheduler starts so the SQLite database and its parent
+    directory always exist, regardless of how the container was started.
+    """
+    for directory in (
+        settings.database_dir,
+        settings.audio_dir,
+        settings.voice_cache_dir,
+        settings.backup_dir,
+    ):
+        directory.mkdir(parents=True, exist_ok=True)
+
+    from alembic import command
+    from alembic.config import Config as AlembicConfig
+
+    base = Path(__file__).resolve().parent.parent
+    cfg = AlembicConfig(str(base / "alembic.ini"))
+    cfg.set_main_option("script_location", str(base / "alembic"))
+    command.upgrade(cfg, "head")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _prepare_database()
     await playback_executor.start()
     await scheduler.start()
     await prefetch_scheduler.start()

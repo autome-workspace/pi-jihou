@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { api } from "../api/client";
 import { usePoll } from "../hooks/usePoll";
-import type { AudioFile, Schedule } from "../types";
+import type { AudioFile, Schedule, VoiceTemplate } from "../types";
 
 const SCHEDULE_TYPES: { value: string; label: string }[] = [
   { value: "daily", label: "毎日" },
@@ -32,12 +32,18 @@ export default function Schedules() {
     5000
   );
   const { data: audioFiles } = usePoll<AudioFile[]>(() => api.get("/api/v1/audio"), 10000);
+  const { data: voiceTemplates } = usePoll<VoiceTemplate[]>(
+    () => api.get("/api/v1/voice/templates"),
+    10000
+  );
 
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [ruleType, setRuleType] = useState("daily");
   const [time, setTime] = useState("12:00:00");
+  const [audioType, setAudioType] = useState("file");
   const [audioFileId, setAudioFileId] = useState("");
+  const [voiceTemplateId, setVoiceTemplateId] = useState("");
   const [volume, setVolume] = useState(80);
   const [conflict, setConflict] = useState("queue");
 
@@ -49,9 +55,9 @@ export default function Schedules() {
       volume,
       priority: 10,
       conflict_policy: conflict,
-      audio_type: "file",
-      audio_file_id: audioFileId || null,
-      voice_template_id: null,
+      audio_type: audioType,
+      audio_file_id: audioType === "file" ? audioFileId || null : null,
+      voice_template_id: audioType === "voice" ? voiceTemplateId || null : null,
       rules: [{ ...emptyRule(), rule_type: ruleType, time }],
     });
     setName("");
@@ -106,14 +112,33 @@ export default function Schedules() {
               <input className="input" type="time" step="1" value={time} onChange={(e) => setTime(e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-ink-500">音声</label>
-              <select className="input" value={audioFileId} onChange={(e) => setAudioFileId(e.target.value)}>
-                <option value="">— なし —</option>
-                {(audioFiles ?? []).map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
+              <label className="text-xs text-ink-500">音声種別</label>
+              <select className="input" value={audioType} onChange={(e) => setAudioType(e.target.value)}>
+                <option value="file">音声ファイル</option>
+                <option value="voice">VOICEVOXテンプレート</option>
               </select>
             </div>
+            {audioType === "file" ? (
+              <div>
+                <label className="text-xs text-ink-500">音声ファイル</label>
+                <select className="input" value={audioFileId} onChange={(e) => setAudioFileId(e.target.value)}>
+                  <option value="">— なし —</option>
+                  {(audioFiles ?? []).map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className="text-xs text-ink-500">VOICEVOXテンプレート</label>
+                <select className="input" value={voiceTemplateId} onChange={(e) => setVoiceTemplateId(e.target.value)}>
+                  <option value="">— なし —</option>
+                  {(voiceTemplates ?? []).map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="text-xs text-ink-500">音量 (%)</label>
               <input className="input" type="number" min={0} max={100} value={volume} onChange={(e) => setVolume(Number(e.target.value))} />
@@ -149,7 +174,12 @@ export default function Schedules() {
           <tbody className="divide-y divide-ink-100">
             {(schedules ?? []).map((s) => (
               <tr key={s.id}>
-                <td className="px-4 py-2 font-medium text-ink-800">{s.name}</td>
+                <td className="px-4 py-2 font-medium text-ink-800">
+                  {s.name}
+                  <div className="text-xs font-normal text-ink-400">
+                    {s.audio_type === "voice" ? "VOICEVOX" : "音声ファイル"}
+                  </div>
+                </td>
                 <td className="px-4 py-2 text-ink-600">
                   {TYPE_LABEL[s.rules[0]?.rule_type ?? ""] ?? s.rules[0]?.rule_type ?? "—"}
                 </td>

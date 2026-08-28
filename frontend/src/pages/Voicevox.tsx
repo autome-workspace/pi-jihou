@@ -28,6 +28,9 @@ export default function Voicevox() {
   const [name, setName] = useState("");
   const [text, setText] = useState("");
   const [speaker, setSpeaker] = useState(1);
+  const [previewResult, setPreviewResult] = useState<{ expanded_text: string; wav_url: string | null } | null>(null);
+  const [previewing, setPreviewing] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   async function create(e: FormEvent) {
     e.preventDefault();
@@ -56,7 +59,22 @@ export default function Voicevox() {
   }
 
   async function preview(t: VoiceTemplate) {
-    await api.post(`/api/v1/voice/templates/${t.id}/preview`, {});
+    setPreviewing(t.id);
+    setPreviewError(null);
+    try {
+      const res = await api.post<{ expanded_text: string; wav_url: string | null }>(
+        `/api/v1/voice/templates/${t.id}/preview`,
+        {}
+      );
+      setPreviewResult(res);
+      if (res.wav_url) {
+        new Audio(res.wav_url).play().catch(() => {});
+      }
+    } catch (err) {
+      setPreviewError(String(err));
+    } finally {
+      setPreviewing(null);
+    }
   }
 
   return (
@@ -129,6 +147,23 @@ export default function Voicevox() {
         </form>
       )}
 
+      {previewError && <div className="badge-red">{previewError}</div>}
+
+      {previewResult && (
+        <div className="card">
+          <div className="card-header">プレビュー結果</div>
+          <div className="px-4 py-3 space-y-3">
+            <div className="text-sm text-ink-700">
+              <span className="text-xs text-ink-400 block">展開結果</span>
+              {previewResult.expanded_text}
+            </div>
+            {previewResult.wav_url && (
+              <audio controls src={previewResult.wav_url} className="w-full" />
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -147,7 +182,9 @@ export default function Voicevox() {
                 <td className="px-4 py-2 text-ink-600 max-w-md truncate">{t.template_text}</td>
                 <td className="px-4 py-2">
                   <div className="flex justify-end gap-1">
-                    <button className="btn-secondary" onClick={() => preview(t)}>プレビュー</button>
+                    <button className="btn-secondary" onClick={() => preview(t)} disabled={previewing === t.id}>
+                      {previewing === t.id ? "プレビュー中…" : "プレビュー"}
+                    </button>
                     <button className="btn-secondary text-red-600" onClick={() => remove(t)}>削除</button>
                   </div>
                 </td>

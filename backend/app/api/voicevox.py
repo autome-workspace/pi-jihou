@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database.session import get_db
 from app.models import VoiceTemplate, VoiceVariable
+from app.scheduler.executor import PlaybackItem, playback_executor
 from app.schemas.voice import (
     GenerateResponse,
     PreviewRequest,
@@ -119,8 +120,25 @@ async def preview_template(
     )
     preview_template = VoiceTemplate(**effective.model_dump())
     expanded_text = expand_template_text(db, preview_template, time_provider.now())
-    await generate_for_template(db, preview_template, time_provider.now())
-    return PreviewResponse(expanded_text=expanded_text, wav_available=True)
+    cache_key, wav_path = await generate_for_template(db, preview_template, time_provider.now())
+
+    # Play the generated audio through the Audio Agent (device playback).
+    await playback_executor.submit(
+        PlaybackItem(
+            schedule_id=None,
+            audio_file_id=None,
+            voice_cache_id=None,
+            path=wav_path,
+            priority=10,
+        )
+    )
+
+    return PreviewResponse(
+        expanded_text=expanded_text,
+        wav_available=True,
+        cache_key=cache_key,
+        wav_url=f"/api/v1/voice/cache/{cache_key}/wav",
+    )
 
 
 @router.post("/voice/templates/{template_id}/generate", response_model=GenerateResponse)
@@ -132,7 +150,12 @@ async def generate_template(
         raise HTTPException(status_code=404, detail="Template not found")
     expanded_text = expand_template_text(db, template, time_provider.now())
     cache_key, wav_path = await generate_for_template(db, template, time_provider.now())
-    return GenerateResponse(cache_key=cache_key, wav_path=wav_path, expanded_text=expanded_text)
+    return GenerateResponse(
+        cache_key=cache_key,
+        wav_path=wav_path,
+        expanded_text=expanded_text,
+        wav_url=f"/api/v1/voice/cache/{cache_key}/wav",
+    )
 
 
 @router.get("/voice/cache/{cache_key}/wav")

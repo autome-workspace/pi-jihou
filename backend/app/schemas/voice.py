@@ -59,12 +59,15 @@ class PreviewRequest(BaseModel):
 class PreviewResponse(BaseModel):
     expanded_text: str
     wav_available: bool = False
+    cache_key: str | None = None
+    wav_url: str | None = None
 
 
 class GenerateResponse(BaseModel):
     cache_key: str | None = None
     wav_path: str | None = None
     expanded_text: str = ""
+    wav_url: str | None = None
 
 
 class VoiceVariableBase(BaseModel):

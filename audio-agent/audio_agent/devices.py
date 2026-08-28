@@ -7,9 +7,12 @@ selection. In mock mode a fixed set of fake devices is returned.
 
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 import subprocess
+
+logger = logging.getLogger(__name__)
 
 MOCK_DEVICES = [
     {"id": "mock-analog", "name": "Mock Analog", "description": "Built-in analog (mock)", "default": True},
@@ -23,28 +26,46 @@ def is_mock() -> bool:
 
 
 def _run(cmd: list[str]) -> str:
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=10).stdout
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+    if result.returncode != 0:
+        logger.warning("%s failed: %s", cmd[0], result.stderr.strip())
+    return result.stdout
 
 
 def _from_wpctl() -> list[dict]:
     if not shutil.which("wpctl"):
+        logger.info("wpctl not found")
         return []
     out = _run(["wpctl", "status"])
+    if not out:
+        return []
+
     devices: list[dict] = []
     in_sinks = False
     for raw in out.splitlines():
         line = raw.strip()
-        if line.startswith("Sinks:"):
+        # Section headers look like " ├─ Sinks:" (with box-drawing prefix), so
+        # match by substring rather than startswith.
+        if "Sinks:" in line:
             in_sinks = True
             continue
-        if line.startswith(("Sink endpoints:", "Sources:", "Source endpoints:",
-                            "Video:", "Streams:", "Settings:")):
+        if in_sinks and any(
+            token in line
+            for token in (
+                "Sources:",
+                "Sink endpoints:",
+                "Source endpoints:",
+                "Filters:",
+                "Streams:",
+                "Devices:",
+            )
+        ):
             in_sinks = False
             continue
         if not in_sinks or not line:
             continue
 
-        # Example line: "│  *   45. vc4-hdmi-0 Digital Stereo (HDMI)    [vol: 1.00]"
+        # Example line: "│  *   57. Built-in Audio Stereo               [vol: 1.00]"
         is_default = "*" in line
         body = line.lstrip("*│ ")
         if "." not in body:
@@ -90,6 +111,10 @@ def enumerate_devices() -> list[dict]:
         return MOCK_DEVICES
     devices = _from_wpctl() or _from_pactl()
     if not devices:
+        logger.warning(
+            "No audio sinks found (wpctl/pactl empty or unavailable). "
+            "Check that PipeWire is running and accessible to this process."
+        )
         devices = [
             {
                 "id": "default",

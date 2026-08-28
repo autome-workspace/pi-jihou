@@ -1,0 +1,7 @@
+[Unit]
+Description=Raspberry Pi Audio Scheduler
+Requires=raspi-audio-agent.service raspi-audio-scheduler.service
+After=network-online.target docker.service
+
+[Install]
+WantedBy=multi-user.target

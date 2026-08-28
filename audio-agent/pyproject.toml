@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "raspi-audio-agent"
+version = "0.1.0"
+description = "Host-side audio output agent for the Raspberry Pi Audio Scheduler"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2",
+    "ruff>=0.5",
+]
+
+[project.scripts]
+raspi-audio-agent = "audio_agent.main:main"
+
+[tool.setuptools.packages.find]
+include = ["audio_agent*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]

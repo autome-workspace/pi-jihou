@@ -1,0 +1,45 @@
+# --- Data (not version controlled) ---
+data/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.eggs/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Node / Frontend ---
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# --- Env / secrets ---
+.env
+.env.local
+.env.*.local
+*.env
+
+# --- Editors / OS ---
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+logs/

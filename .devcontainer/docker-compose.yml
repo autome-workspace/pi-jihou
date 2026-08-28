@@ -1,0 +1,51 @@
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - ..:/workspace:cached
+      - backend-data:/workspace/data
+    command: sleep infinity
+    environment:
+      DATA_DIR: /workspace/data
+      DATABASE_URL: sqlite:////workspace/data/database/app.db
+      AUDIO_AGENT_URL: http://audio-agent:8031
+      VOICEVOX_URL: http://voicevox:50021
+      NTP_PRIMARY: time.cloudflare.com
+    depends_on:
+      - audio-agent
+      - voicevox
+
+  audio-agent:
+    build:
+      context: ..
+      dockerfile: audio-agent/Dockerfile
+    command: ["python", "-m", "audio_agent", "--mock"]
+    environment:
+      AUDIO_AGENT_MOCK: "1"
+    ports:
+      - "8031:8031"
+
+  voicevox:
+    image: voicevox/voicevox_engine:cpu-ubuntu20.04-latest
+    ports:
+      - "50021:50021"
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+
+  frontend:
+    image: node:20-slim
+    volumes:
+      - ..:/workspace:cached
+    working_dir: /workspace/frontend
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    environment:
+      VITE_API_BASE_URL: http://localhost:8080
+    ports:
+      - "5173:5173"
+
+volumes:
+  backend-data:

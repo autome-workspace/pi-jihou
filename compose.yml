@@ -1,0 +1,67 @@
+# Docker Compose - Raspberry Pi Audio Scheduler
+#
+# On a Raspberry Pi 4 the audio-agent normally runs as a host systemd service
+# (not in Docker) so it can talk to PipeWire/ALSA directly. For development and
+# demo purposes, a mock audio-agent container is included here and used by the
+# backend by default (AUDIO_AGENT_MOCK=1). On the Pi, install.sh switches the
+# backend to the host agent via AUDIO_AGENT_URL=host.docker.internal:8031 and
+# does not start the mock container.
+#
+# Usage:
+#   sudo ./install.sh      # full installation (recommended)
+#   docker compose up -d   # development / manual run
+
+services:
+  backend:
+    build: ./backend
+    container_name: raspi-audio-backend
+    restart: unless-stopped
+    environment:
+      - DATA_DIR=/var/lib/raspi-audio-scheduler
+      - DATABASE_URL=sqlite:////var/lib/raspi-audio-scheduler/database/app.db
+      - VOICEVOX_URL=http://voicevox:50021
+      - AUDIO_AGENT_URL=${AUDIO_AGENT_URL:-http://audio-agent:8031}
+    volumes:
+      - data:/var/lib/raspi-audio-scheduler
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    depends_on:
+      voicevox:
+        condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  audio-agent:
+    # Mock audio agent for development/demo (no real audio hardware).
+    build: ./audio-agent
+    container_name: raspi-audio-agent
+    restart: unless-stopped
+    environment:
+      - AUDIO_AGENT_MOCK=${AUDIO_AGENT_MOCK:-1}
+
+  voicevox:
+    # VOICEVOX ENGINE CPU build for ARM64 (aarch64).
+    # Pin to a tag available for linux/arm64. Refer to VOICEVOX releases for tags.
+    image: voicevox/voicevox_engine:cpu-ubuntu20.04-latest
+    container_name: raspi-audio-voicevox
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:50021:50021"
+    # VOICEVOX CPU builds can be memory-hungry; keep a sane default.
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+
+  frontend:
+    build: ./frontend
+    container_name: raspi-audio-frontend
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-80}:80"
+    depends_on:
+      - backend
+
+volumes:
+  data:
+    name: raspi-audio-scheduler-data

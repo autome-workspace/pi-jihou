@@ -1,0 +1,21 @@
+[Unit]
+Description=Raspberry Pi Audio Agent (host-side audio output)
+After=pipewire.service pipewire-pulse.service network.target
+Wants=pipewire.service pipewire-pulse.service
+
+[Service]
+Type=simple
+User=audio-scheduler
+Group=audio
+ExecStart=/opt/raspi-audio-scheduler/audio-agent/.venv/bin/raspi-audio-agent
+Restart=always
+RestartSec=5
+Environment=PATH=/opt/raspi-audio-scheduler/audio-agent/.venv/bin:/usr/local/bin:/usr/bin:/bin
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=HOME=/var/lib/raspi-audio-scheduler
+
+# PipeWire/ALSA access
+SupplementaryGroups=audio video pipewire
+
+[Install]
+WantedBy=multi-user.target

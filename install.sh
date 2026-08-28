@@ -149,17 +149,45 @@ copy_app() {
     ./ "${INSTALL_DIR}/"
 }
 
+detect_audio_user() {
+  # Return the user who owns an active PipeWire session; otherwise the first
+  # regular user; otherwise root. The agent must run as the PipeWire session
+  # user (or root) to access the audio device.
+  local socket uid user
+  socket="$(ls -d /run/user/[0-9]*/pipewire-0 2>/dev/null | head -n1)"
+  if [ -n "${socket}" ]; then
+    uid="$(basename "$(dirname "${socket}")")"
+    user="$(id -un "${uid}" 2>/dev/null || true)"
+    if [ -n "${user}" ]; then echo "${user}"; return; fi
+  fi
+  user="$(getent passwd | awk -F: '$3>=1000 && $3<60000 {print $1; exit}')"
+  echo "${user:-root}"
+}
+
 install_audio_agent() {
   log "Installing audio-agent (systemd service)..."
   # The audio agent uses only the Python standard library, so no venv/pip
   # (and no PyPI access) is required at install time.
   local agent_dir="${INSTALL_DIR}/audio-agent"
+  local agent_user agent_uid agent_home
+  agent_user="$(detect_audio_user)"
+  agent_uid="$(id -u "${agent_user}" 2>/dev/null || echo 0)"
+  agent_home="$(getent passwd "${agent_user}" | cut -d: -f6)"
+  agent_home="${agent_home:-/var/lib/${APP_NAME}}"
+
   install -m 644 "${agent_dir}/raspi-audio-agent.service" /etc/systemd/system/
-  # The backend runs in a container and reaches the agent via host-gateway, so
-  # the agent must bind to an address reachable from the container.
   install -d /etc/systemd/system/raspi-audio-agent.service.d
-  printf '[Service]\nEnvironment=AUDIO_AGENT_BIND=0.0.0.0\n' \
-    > /etc/systemd/system/raspi-audio-agent.service.d/bind.conf
+  {
+    echo "[Service]"
+    echo "User=${agent_user}"
+    echo "Group=audio"
+    echo "Environment=HOME=${agent_home}"
+    echo "Environment=XDG_RUNTIME_DIR=/run/user/${agent_uid}"
+    # The backend runs in a container and reaches the agent via host-gateway.
+    echo "Environment=AUDIO_AGENT_BIND=0.0.0.0"
+  } > /etc/systemd/system/raspi-audio-agent.service.d/override.conf
+  log "Audio agent will run as user '${agent_user}' (uid ${agent_uid})."
+
   systemctl daemon-reload
   systemctl enable raspi-audio-agent.service
   systemctl restart raspi-audio-agent.service

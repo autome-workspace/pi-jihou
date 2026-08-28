@@ -5,14 +5,12 @@ Wants=pipewire.service pipewire-pulse.service
 
 [Service]
 Type=simple
-User=audio-scheduler
-Group=audio
+# User / XDG_RUNTIME_DIR / HOME are configured by install.sh via a drop-in so
+# the agent runs as the PipeWire session user.
 WorkingDirectory=/opt/raspi-audio-scheduler/audio-agent
 ExecStart=/usr/bin/python3 -m audio_agent
 Restart=always
 RestartSec=5
-Environment=XDG_RUNTIME_DIR=/run/user/1000
-Environment=HOME=/var/lib/raspi-audio-scheduler
 
 # PipeWire/ALSA access
 SupplementaryGroups=audio video pipewire

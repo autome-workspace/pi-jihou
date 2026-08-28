@@ -7,10 +7,8 @@ name = "raspi-audio-agent"
 version = "0.1.0"
 description = "Host-side audio output agent for the Raspberry Pi Audio Scheduler"
 requires-python = ">=3.11"
-dependencies = [
-    "fastapi>=0.111",
-    "uvicorn[standard]>=0.30",
-]
+# Standard library only: the agent installs without any PyPI dependencies.
+dependencies = []
 
 [project.optional-dependencies]
 dev = [

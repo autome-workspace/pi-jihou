@@ -9,7 +9,7 @@ DATA_DIR="/var/lib/${APP_NAME}"
 CONFIG_DIR="/etc/${APP_NAME}"
 LOG_DIR="/var/log/${APP_NAME}"
 SERVICE_USER="audio-scheduler"
-REQUIRED_PACKAGES="curl git jq ffmpeg pipewire pipewire-pulse wireplumber alsa-utils python3 python3-venv ca-certificates"
+REQUIRED_PACKAGES="curl git jq ffmpeg pipewire pipewire-pulse wireplumber alsa-utils python3 ca-certificates"
 
 log()  { printf '\033[1;34m[install]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[warn]\033[0m %s\n' "$*"; }
@@ -151,11 +151,9 @@ copy_app() {
 
 install_audio_agent() {
   log "Installing audio-agent (systemd service)..."
+  # The audio agent uses only the Python standard library, so no venv/pip
+  # (and no PyPI access) is required at install time.
   local agent_dir="${INSTALL_DIR}/audio-agent"
-  python3 -m venv "${agent_dir}/.venv"
-  "${agent_dir}/.venv/bin/pip" install --quiet --upgrade pip
-  "${agent_dir}/.venv/bin/pip" install --quiet "${agent_dir}"
-
   install -m 644 "${agent_dir}/raspi-audio-agent.service" /etc/systemd/system/
   # The backend runs in a container and reaches the agent via host-gateway, so
   # the agent must bind to an address reachable from the container.
@@ -176,8 +174,10 @@ setup_backend_service() {
 }
 
 pull_images() {
-  log "Pulling Docker images..."
-  docker compose -f "${INSTALL_DIR}/compose.yml" pull
+  log "Pulling VOICEVOX image..."
+  docker compose -f "${INSTALL_DIR}/compose.yml" pull voicevox
+  log "Building backend / frontend images..."
+  docker compose -f "${INSTALL_DIR}/compose.yml" build backend frontend
 }
 
 check_audio() {

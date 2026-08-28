@@ -36,8 +36,10 @@ pull_code() {
 }
 
 pull_images() {
-  log "Pulling Docker images..."
-  docker compose -f "${INSTALL_DIR}/compose.yml" pull
+  log "Pulling VOICEVOX image..."
+  docker compose -f "${INSTALL_DIR}/compose.yml" pull voicevox
+  log "Building backend / frontend images..."
+  docker compose -f "${INSTALL_DIR}/compose.yml" build backend frontend
 }
 
 migrate() {

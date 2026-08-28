@@ -7,10 +7,10 @@ Wants=pipewire.service pipewire-pulse.service
 Type=simple
 User=audio-scheduler
 Group=audio
-ExecStart=/opt/raspi-audio-scheduler/audio-agent/.venv/bin/raspi-audio-agent
+WorkingDirectory=/opt/raspi-audio-scheduler/audio-agent
+ExecStart=/usr/bin/python3 -m audio_agent
 Restart=always
 RestartSec=5
-Environment=PATH=/opt/raspi-audio-scheduler/audio-agent/.venv/bin:/usr/local/bin:/usr/bin:/bin
 Environment=XDG_RUNTIME_DIR=/run/user/1000
 Environment=HOME=/var/lib/raspi-audio-scheduler
 

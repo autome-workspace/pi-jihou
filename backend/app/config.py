@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     app_host: str = "0.0.0.0"
     app_port: int = 8080
     log_level: str = "INFO"
+    # IANA timezone for interpreting schedule times (e.g. "Asia/Tokyo").
+    # Empty = use the system's local timezone.
+    app_timezone: str = ""
 
     # --- Storage ---
     data_dir: str = "/var/lib/raspi-audio-scheduler"

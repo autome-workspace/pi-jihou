@@ -73,7 +73,7 @@ def playback_history(limit: int = 50, db: Session = Depends(get_db)) -> list[dic
 
 @router.get("/next-playback")
 def next_playback(db: Session = Depends(get_db)) -> dict | None:
-    now = time_provider.now()
+    now = time_provider.now_local()
     best_schedule: Schedule | None = None
     best_time = None
     for schedule in db.query(Schedule).filter(Schedule.enabled.is_(True)).all():

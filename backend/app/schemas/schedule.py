@@ -10,6 +10,9 @@ from app.models.enums import AudioType, ConflictPolicy, ScheduleType
 class ScheduleRuleBase(BaseModel):
     rule_type: ScheduleType = ScheduleType.DAILY
     time: time_type | None = None
+    start_time: time_type | None = None
+    end_time: time_type | None = None
+    interval_minutes: int | None = Field(default=None, ge=0)
     days_of_week: list[int] | None = None
     specific_date: date | None = None
     cron_expression: str | None = None

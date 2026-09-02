@@ -31,6 +31,9 @@ def next_occurrence(rule: ScheduleRule, after: datetime) -> datetime | None:
     if rule_type == ScheduleType.CRON:
         return _next_cron(rule.cron_expression or "", after)
 
+    if rule_type == ScheduleType.INTERVAL:
+        return _next_interval(rule, after)
+
     return None
 
 
@@ -72,6 +75,43 @@ def _next_weekly(days: set[int], at: time | None, after: datetime) -> datetime |
             return candidate
         candidate += timedelta(days=1)
     return None
+
+
+def _next_interval(rule: ScheduleRule, after: datetime) -> datetime | None:
+    """Next occurrence for an interval rule: repeated playback between
+    ``start_time`` and ``end_time``.
+
+    - interval_minutes > 0: fire at start_time, then every N minutes.
+    - interval_minutes == 0: continuous (絶え間なく) loop; fire once at
+      start_time and the executor replays back-to-back until end_time.
+
+    Applies daily by default, or on the days listed in ``days_of_week``.
+    """
+    start = rule.start_time or time(0, 0, 0)
+    end = rule.end_time or time(23, 59, 59)
+    interval = rule.interval_minutes or 0
+    days = set(rule.days_of_week or []) or None  # None = every day
+
+    for offset in range(8):
+        day = (after + timedelta(days=offset)).date()
+        if days is not None and day.weekday() not in days:
+            continue
+        first = datetime.combine(day, start)
+
+        if interval <= 0:
+            # Continuous: fire once at window start; the executor loops.
+            if first > after:
+                return first
+            continue
+
+        end_dt = datetime.combine(day, end)
+        current = first
+        while current <= end_dt:
+            if current > after:
+                return current
+            current += timedelta(minutes=interval)
+    return None
+
 
 
 # --- Minimal 5-field cron (minute hour day-of-month month day-of-week) ---

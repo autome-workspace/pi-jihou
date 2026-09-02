@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 
 from app.audio.client import audio_agent_client
 from app.database.session import SessionLocal
@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 
 
 def _now() -> datetime:
-    """Naive UTC timestamp, matching how SQLite stores datetimes."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    """Naive local timestamp (schedules/timestamps are local wall-clock)."""
+    return datetime.now().astimezone().replace(tzinfo=None)
 
 
 @dataclass
@@ -39,6 +39,8 @@ class PlaybackItem:
     scheduled_at: datetime | None = None
     queue_record_id: str | None = None
     audio_device: str = ""
+    # Continuous (絶え間なく) playback: loop until this time.
+    loop_until: datetime | None = None
     created_at: datetime = field(default_factory=_now)
 
 
@@ -130,7 +132,15 @@ class PlaybackExecutor:
         error = ""
 
         try:
-            await audio_agent_client.play(item.path, item.audio_device or None)
+            if item.loop_until is not None:
+                # 絶え間なく repeat: replay back-to-back until loop_until. Each
+                # /play call blocks until the audio finishes, so this loops
+                # without dead time being added by us.
+                while _now() < item.loop_until:
+                    await audio_agent_client.play(item.path, item.audio_device or None)
+                    await asyncio.sleep(0.2)
+            else:
+                await audio_agent_client.play(item.path, item.audio_device or None)
         except Exception as exc:  # noqa: BLE001
             result = PlaybackResult.FAILED.value
             error = str(exc)

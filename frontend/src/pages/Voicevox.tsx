@@ -24,6 +24,7 @@ export default function Voicevox() {
   );
 
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(true);
   const [name, setName] = useState("");
   const [text, setText] = useState("");
@@ -32,9 +33,25 @@ export default function Voicevox() {
   const [previewing, setPreviewing] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
-  async function create(e: FormEvent) {
+  function resetForm() {
+    setEditingId(null);
+    setName("");
+    setText("");
+    setSpeaker(1);
+    setShowForm(false);
+  }
+
+  function startEdit(t: VoiceTemplate) {
+    setEditingId(t.id);
+    setName(t.name);
+    setText(t.template_text);
+    setSpeaker(t.speaker_id);
+    setShowForm(true);
+  }
+
+  async function save(e: FormEvent) {
     e.preventDefault();
-    await api.post("/api/v1/voice/templates", {
+    const payload = {
       name,
       template_text: text,
       speaker_id: speaker,
@@ -46,10 +63,13 @@ export default function Voicevox() {
       pre_silence_ms: 0,
       post_silence_ms: 0,
       generation_strategy: "before_playback",
-    });
-    setName("");
-    setText("");
-    setShowForm(false);
+    };
+    if (editingId) {
+      await api.put(`/api/v1/voice/templates/${editingId}`, payload);
+    } else {
+      await api.post("/api/v1/voice/templates", payload);
+    }
+    resetForm();
     refresh();
   }
 
@@ -89,7 +109,13 @@ export default function Voicevox() {
             </span>
           </p>
         </div>
-        <button className="btn-primary" onClick={() => setShowForm((v) => !v)}>
+        <button
+          className="btn-primary"
+          onClick={() => {
+            resetForm();
+            setShowForm(true);
+          }}
+        >
           + 新規テンプレート
         </button>
       </div>
@@ -125,7 +151,10 @@ export default function Voicevox() {
       )}
 
       {showForm && (
-        <form onSubmit={create} className="card p-4 space-y-3">
+        <form onSubmit={save} className="card p-4 space-y-3">
+          <div className="text-sm font-semibold text-ink-700">
+            {editingId ? "テンプレートを編集" : "新規テンプレート"}
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-ink-500">名前</label>
@@ -141,8 +170,8 @@ export default function Voicevox() {
             <textarea className="input" rows={3} value={text} onChange={(e) => setText(e.target.value)} />
           </div>
           <div className="flex gap-2">
-            <button type="submit" className="btn-primary">保存</button>
-            <button type="button" className="btn-secondary" onClick={() => setShowForm(false)}>キャンセル</button>
+            <button type="submit" className="btn-primary">{editingId ? "更新" : "保存"}</button>
+            <button type="button" className="btn-secondary" onClick={resetForm}>キャンセル</button>
           </div>
         </form>
       )}
@@ -182,6 +211,7 @@ export default function Voicevox() {
                 <td className="px-4 py-2 text-ink-600 max-w-md truncate">{t.template_text}</td>
                 <td className="px-4 py-2">
                   <div className="flex justify-end gap-1">
+                    <button className="btn-secondary" onClick={() => startEdit(t)}>編集</button>
                     <button className="btn-secondary" onClick={() => preview(t)} disabled={previewing === t.id}>
                       {previewing === t.id ? "プレビュー中…" : "プレビュー"}
                     </button>

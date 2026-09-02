@@ -54,7 +54,7 @@ class PrefetchScheduler:
             await asyncio.sleep(PREFETCH_TICK)
 
     async def _prefetch_due(self) -> None:
-        now = self.provider.now()
+        now = self.provider.now_local()
         horizon = now + timedelta(seconds=settings.voice_prefetch_seconds)
 
         db = SessionLocal()
@@ -91,7 +91,7 @@ class PrefetchScheduler:
             template = db.get(VoiceTemplate, schedule.voice_template_id)
             if template is None:
                 return
-            await generate_for_template(db, template, self.provider.now())
+            await generate_for_template(db, template, self.provider.now_local())
         except Exception as exc:  # noqa: BLE001
             logger.warning("Prefetch generation failed for schedule %s: %s", schedule_id, exc)
         finally:

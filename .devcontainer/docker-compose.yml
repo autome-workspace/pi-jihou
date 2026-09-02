@@ -19,8 +19,8 @@ services:
 
   audio-agent:
     build:
-      context: ..
-      dockerfile: audio-agent/Dockerfile
+      context: ../audio-agent
+      dockerfile: Dockerfile
     command: ["python", "-m", "audio_agent", "--mock"]
     environment:
       AUDIO_AGENT_MOCK: "1"

@@ -11,6 +11,7 @@ import logging
 import shutil
 import subprocess
 import threading
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -33,13 +34,21 @@ class PlaybackManager:
 
         if is_mock():
             logger.info("PLAY %s (device=%s)", path, device_id or "default")
-            return {"status": "playing", "path": path, "device_id": device_id}
+            # Simulate a short playback so callers can loop back-to-back.
+            time.sleep(1.0)
+            return {"status": "played", "path": path, "device_id": device_id}
 
         cmd = self._build_command(path, device_id)
         logger.info("Playing %s via %s", path, cmd)
+        proc = subprocess.Popen(cmd)
         with self._lock:
-            self._proc = subprocess.Popen(cmd)
-        return {"status": "playing", "path": path, "device_id": device_id}
+            self._proc = proc
+        # Block until playback finishes so callers can loop back-to-back.
+        proc.wait()
+        with self._lock:
+            if self._proc is proc:
+                self._proc = None
+        return {"status": "played", "path": path, "device_id": device_id}
 
     def _build_command(self, path: str, device_id: str | None) -> list[str]:
         if shutil.which("pw-play"):

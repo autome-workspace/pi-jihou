@@ -59,7 +59,7 @@ class Scheduler:
             await asyncio.sleep(TICK_INTERVAL)
 
     async def _tick(self) -> None:
-        now = self.provider.now_naive()
+        now = self.provider.now_local()
         db = SessionLocal()
         try:
             schedules = db.query(Schedule).filter(Schedule.enabled.is_(True)).all()
@@ -92,7 +92,7 @@ class Scheduler:
             event = ScheduleEvent(
                 schedule_id=schedule_id,
                 scheduled_at=target,
-                executed_at=self.provider.now_naive(),
+                executed_at=self.provider.now_local(),
                 result="pending",
             )
             db.add(event)
@@ -121,6 +121,19 @@ class Scheduler:
         self, db: Session, schedule: Schedule, target: datetime
     ) -> PlaybackItem | None:
         audio_device = ""  # resolved by the audio agent's current device
+
+        # Continuous (絶え間なく) repeat: an interval rule with 0 minutes loops
+        # playback back-to-back until the window's end time.
+        loop_until: datetime | None = None
+        for rule in schedule.rules:
+            if (
+                rule.rule_type == "interval"
+                and (rule.interval_minutes or 0) == 0
+                and rule.end_time is not None
+            ):
+                loop_until = datetime.combine(target.date(), rule.end_time)
+                break
+
         if schedule.audio_type == AudioType.FILE.value:
             from app.models import AudioFile
 
@@ -135,6 +148,7 @@ class Scheduler:
                 priority=schedule.priority,
                 scheduled_at=target,
                 audio_device=audio_device,
+                loop_until=loop_until,
             )
 
         # VOICEVOX template: reuse the prefetched cache. Do not generate on the
@@ -146,7 +160,7 @@ class Scheduler:
             if template is None:
                 return None
             try:
-                expanded_text = expand_template_text(db, template, self.provider.now_naive())
+                expanded_text = expand_template_text(db, template, self.provider.now_local())
                 version = await voicevox_client.version()
             except Exception:  # noqa: BLE001
                 version = ""
@@ -173,13 +187,14 @@ class Scheduler:
                 priority=schedule.priority,
                 scheduled_at=target,
                 audio_device=audio_device,
+                loop_until=loop_until,
             )
 
         return None
 
     async def run_now(self, schedule_id: str) -> bool:
         """Immediately queue a schedule for playback (used by the run endpoint)."""
-        now = self.provider.now_naive()
+        now = self.provider.now_local()
         db = SessionLocal()
         try:
             schedule = db.get(Schedule, schedule_id)

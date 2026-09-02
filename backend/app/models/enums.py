@@ -10,6 +10,7 @@ class ScheduleType(str, enum.Enum):
     WEEKLY = "weekly"
     DATE = "date"
     CRON = "cron"
+    INTERVAL = "interval"
 
 
 class ConflictPolicy(str, enum.Enum):

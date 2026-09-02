@@ -21,6 +21,8 @@ services:
       - DATABASE_URL=sqlite:////var/lib/raspi-audio-scheduler/database/app.db
       - VOICEVOX_URL=http://voicevox:50021
       - AUDIO_AGENT_URL=${AUDIO_AGENT_URL:-http://audio-agent:8031}
+      - APP_TIMEZONE=${APP_TIMEZONE:-Asia/Tokyo}
+      - TZ=${APP_TIMEZONE:-Asia/Tokyo}
     volumes:
       # Bind mount so the host data directory (created by install.sh on the Pi)
       # is used directly. Defaults to ./data for local development.
@@ -40,6 +42,7 @@ services:
     restart: unless-stopped
     environment:
       - AUDIO_AGENT_MOCK=${AUDIO_AGENT_MOCK:-1}
+      - AUDIO_AGENT_BIND=0.0.0.0
 
   voicevox:
     # VOICEVOX ENGINE CPU build for ARM64 (aarch64).

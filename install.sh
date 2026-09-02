@@ -127,6 +127,7 @@ write_env() {
   log "Creating environment file ${env_file}..."
   cat > "${env_file}" <<EOF
 APP_PORT=8080
+APP_TIMEZONE=Asia/Tokyo
 DATA_DIR=${DATA_DIR}
 NTP_PRIMARY=ntp.nict.jp
 NTP_SECONDARY=time.cloudflare.com

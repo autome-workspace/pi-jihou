@@ -35,7 +35,8 @@ class AudioAgentClient:
         payload: dict = {"path": path}
         if device_id:
             payload["device_id"] = device_id
-        async with httpx.AsyncClient(timeout=30) as client:
+        # The agent blocks /play until playback completes, so allow long audio.
+        async with httpx.AsyncClient(timeout=3600) as client:
             resp = await client.post(f"{self.base_url}/play", json=payload)
             resp.raise_for_status()
             return resp.json()

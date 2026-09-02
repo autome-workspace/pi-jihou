@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import time
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
+from app.config import settings
 from app.models.enums import NtpState
 
 
@@ -68,6 +70,18 @@ class TimeProvider:
     def now_naive(self) -> datetime:
         """Return the current application time as a naive datetime (UTC)."""
         return self.now().replace(tzinfo=None)
+
+    def now_local(self) -> datetime:
+        """Return the current application time as a naive local datetime.
+
+        Schedules are entered as local wall-clock times, so the scheduler and
+        next-playback computation must use local time. Falls back to the system
+        timezone when ``APP_TIMEZONE`` is unset.
+        """
+        utc = self.now()
+        if settings.app_timezone:
+            return utc.astimezone(ZoneInfo(settings.app_timezone)).replace(tzinfo=None)
+        return utc.astimezone().replace(tzinfo=None)
 
 
 # Process-wide singleton.

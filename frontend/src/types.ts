@@ -38,6 +38,9 @@ export interface ScheduleRule {
   id?: string;
   rule_type: string;
   time: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  interval_minutes: number | null;
   days_of_week: number[] | null;
   specific_date: string | null;
   cron_expression: string | null;
